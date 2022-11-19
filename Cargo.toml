@@ -1,0 +1,20 @@
+[package]
+name = "flappy_bird_bevy"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+#bevy = "0.8.1"
+bevy = { version = "0.9", features = ["dynamic"] }
+rand = "0.8.5"
+bevy_hanabi = { version = "0.5", default-features = false, features = [ "2d" ] }
+
+# Enable a small amount of optimization in debug mode
+[profile.dev]
+opt-level = 1
+
+# Enable high optimizations for dependencies (incl. Bevy), but not for our code:
+[profile.dev.package."*"]
+opt-level = 3
