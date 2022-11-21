@@ -4,7 +4,7 @@ use bevy::{
     render::{
         mesh::shape::Cube,
         settings::{WgpuFeatures, WgpuSettings},
-    }, window::close_on_esc,
+    }, window::close_on_esc, sprite::collide_aabb,
 };
 use bevy_hanabi::prelude::*;
 
@@ -12,6 +12,8 @@ const PLAYER_WIDTH : f32= 34.0;
 const PLAYER_HEIGHT : f32= 24.0;
 const PLAYER_FRAMES : usize = 4;
 const PLAYER_LAYER : f32 = 4.0;
+const PIPE_WIDTH : f32 = 52.0;
+const PIPE_HEIGHT : f32 = 320.0;
 
 
 #[derive(Component)]
@@ -32,7 +34,10 @@ struct Velocity {
 }
 
 #[derive(Resource, Deref)]
-struct SoundEffect(Handle<AudioSource>);
+struct FlapSoundEffect(Handle<AudioSource>);
+
+#[derive(Resource, Deref)]
+struct DieSoundEffect(Handle<AudioSource>);
 
 impl Velocity {
     fn default() -> Self {
@@ -59,8 +64,11 @@ fn global_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     };
     commands.spawn(camera);
 
-    let music : Handle<AudioSource> = asset_server.load("Wing.ogg");
-    commands.insert_resource(SoundEffect(music));
+    let flap : Handle<AudioSource> = asset_server.load("Wing.ogg");
+    commands.insert_resource(FlapSoundEffect(flap));
+
+    let die : Handle<AudioSource> = asset_server.load("die.ogg");
+    commands.insert_resource(DieSoundEffect(die));
     //commands.insert_resource(Random(rand::thread_rng()));
 }
 
@@ -210,7 +218,7 @@ fn keyboard_input(keys: Res<Input<KeyCode>>, mut query: Query<&mut Velocity>) {
     }
 }
 
-fn play_flap(keys: Res<Input<KeyCode>>, audio : Res<Audio>, sound_effect : Res<SoundEffect>) {
+fn play_flap(keys: Res<Input<KeyCode>>, audio : Res<Audio>, sound_effect : Res<FlapSoundEffect>) {
     if keys.just_pressed(KeyCode::Space) {
         audio.play(sound_effect.0.clone_weak());
         
@@ -271,10 +279,25 @@ fn move_particles(
 }
 
 fn check_collisions(
+    audio : Res<Audio>, 
+    die : Res<DieSoundEffect>,
     player: Query<&mut Transform, (With<Player>, Without<Obstacle>)>,
-    _obstacles: Query<&mut Transform, (With<Obstacle>, Without<Player>)>,
+    obstacles: Query<&mut Transform, (With<Obstacle>, Without<Player>)>,
 ) {
-    let _player = player.single();
+    let player = player.single();
+    let player_pos = player.translation;
+    let player_size = Vec2::new(PLAYER_WIDTH, PLAYER_HEIGHT);
+
+    for obstacle in obstacles.iter() {
+        let obstacle_pos = obstacle.translation;
+        let obstacle_size = Vec2::new(PIPE_WIDTH, PIPE_HEIGHT);
+        let collision = collide_aabb::collide(player_pos, player_size, obstacle_pos, obstacle_size);
+        match collision {
+            Some(_) => { audio.play(die.clone());},
+            None => {}
+        }
+    }
+    
 }
 
 fn main() {
