@@ -4,17 +4,34 @@ use bevy::{
     render::{
         mesh::shape::Cube,
         settings::{WgpuFeatures, WgpuSettings},
-    }, window::close_on_esc, sprite::collide_aabb,
+    },
+    sprite::collide_aabb,
+    window::close_on_esc,
 };
 use bevy_hanabi::prelude::*;
+use iyes_loopless::prelude::*;
 
-const PLAYER_WIDTH : f32= 34.0;
-const PLAYER_HEIGHT : f32= 24.0;
-const PLAYER_FRAMES : usize = 4;
-const PLAYER_LAYER : f32 = 4.0;
-const PIPE_WIDTH : f32 = 52.0;
-const PIPE_HEIGHT : f32 = 320.0;
+const PLAYER_WIDTH: f32 = 34.0;
+const PLAYER_HEIGHT: f32 = 24.0;
+const PLAYER_FRAMES: usize = 4;
+const PLAYER_LAYER: f32 = 4.0;
+const PIPE_WIDTH: f32 = 52.0;
+const PIPE_HEIGHT: f32 = 320.0;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum GameState {
+    MainMenu,
+    InGame,
+    GameOver
+}
+
+#[derive(Component)]
+struct MenuEntity;
+#[derive(Component)]
+struct InGameEntity;
+
+#[derive(Component)]
+struct GameOverEntity;
 
 #[derive(Component)]
 struct Player;
@@ -64,12 +81,48 @@ fn global_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     };
     commands.spawn(camera);
 
-    let flap : Handle<AudioSource> = asset_server.load("Wing.ogg");
+    let flap: Handle<AudioSource> = asset_server.load("Wing.ogg");
     commands.insert_resource(FlapSoundEffect(flap));
 
-    let die : Handle<AudioSource> = asset_server.load("die.ogg");
+    let die: Handle<AudioSource> = asset_server.load("die.ogg");
     commands.insert_resource(DieSoundEffect(die));
     //commands.insert_resource(Random(rand::thread_rng()));
+}
+
+//Menu
+
+fn menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+    let sprite = SpriteBundle {
+        texture: asset_server.load("message.png"),
+        ..default()
+    };
+
+    commands.spawn(sprite).insert(MenuEntity);
+}
+
+fn menu_keyboard_input(keys: Res<Input<KeyCode>>, mut commands: Commands) {
+    if keys.just_pressed(KeyCode::Space) {
+        commands.insert_resource(NextState(GameState::InGame));
+    }
+}
+
+
+// Game Over
+
+fn gameover_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+    let sprite = SpriteBundle {
+        texture: asset_server.load("gameover.png"),
+        ..default()
+    };
+
+    commands.spawn(sprite).insert(GameOverEntity);
+}
+
+
+fn gameover_keyboard_input(keys: Res<Input<KeyCode>>, mut commands: Commands) {
+    if keys.just_pressed(KeyCode::Space) {
+        commands.insert_resource(NextState(GameState::MainMenu));
+    }
 }
 
 fn obstacle_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -83,7 +136,7 @@ fn obstacle_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             ..default()
         };
 
-        commands.spawn(sprite).insert(Obstacle);
+        commands.spawn(sprite).insert(Obstacle).insert(InGameEntity);
 
         let sprite = SpriteBundle {
             transform: Transform {
@@ -98,7 +151,7 @@ fn obstacle_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             ..default()
         };
 
-        commands.spawn(sprite).insert(Obstacle);
+        commands.spawn(sprite).insert(Obstacle).insert(InGameEntity);
     }
 }
 
@@ -113,32 +166,17 @@ fn background_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             ..default()
         };
 
-        commands.spawn(sprite).insert(Background);
+        commands.spawn(sprite).insert(Background).insert(InGameEntity);
     }
 }
 
-fn player_setup(
+fn rainbow_fart_setup(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
     mut effects: ResMut<Assets<EffectAsset>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+
 ) {
-    let texture_handle = asset_server.load("flappy.png");
-    let texture_atlas =
-        TextureAtlas::from_grid(texture_handle, Vec2::new(PLAYER_WIDTH, PLAYER_HEIGHT), PLAYER_FRAMES, 1, None, None);
-    let texture_atlas_handle = texture_atlases.add(texture_atlas);
-    let animation = SpriteSheetBundle {
-        texture_atlas: texture_atlas_handle,
-        transform: Transform {
-            translation: Vec3::new(0.0, 0.0, PLAYER_LAYER),
-            ..Transform::default()
-        },
-
-        ..default()
-    };
-
     let mut color_gradient1 = Gradient::new();
     color_gradient1.add_key(0.0, Vec4::splat(1.0));
     color_gradient1.add_key(0.1, Vec4::new(1.0, 1.0, 0.0, 1.0));
@@ -197,11 +235,43 @@ fn player_setup(
                 },
                 Name::new("source"),
             ));
-        });
+        })
+        .insert(InGameEntity);
+}
+
+fn player_setup(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+) {
+    let texture_handle = asset_server.load("flappy.png");
+    let texture_atlas = TextureAtlas::from_grid(
+        texture_handle,
+        Vec2::new(PLAYER_WIDTH, PLAYER_HEIGHT),
+        PLAYER_FRAMES,
+        1,
+        None,
+        None,
+    );
+    let texture_atlas_handle = texture_atlases.add(texture_atlas);
+    let animation = SpriteSheetBundle {
+        texture_atlas: texture_atlas_handle,
+        transform: Transform {
+            translation: Vec3::new(0.0, 0.0, PLAYER_LAYER),
+            ..Transform::default()
+        },
+
+        ..default()
+    };
+
+    /* 
+    
+        */
 
     commands
         .spawn(animation)
         .insert(Player)
+        .insert(InGameEntity)
         .insert(Velocity::default())
         .insert(AnimationTimer(Timer::from_seconds(
             0.10,
@@ -213,15 +283,12 @@ fn keyboard_input(keys: Res<Input<KeyCode>>, mut query: Query<&mut Velocity>) {
     let mut player = query.single_mut();
     if keys.just_pressed(KeyCode::Space) {
         player.y = 3.0;
-
-        
     }
 }
 
-fn play_flap(keys: Res<Input<KeyCode>>, audio : Res<Audio>, sound_effect : Res<FlapSoundEffect>) {
+fn play_flap(keys: Res<Input<KeyCode>>, audio: Res<Audio>, sound_effect: Res<FlapSoundEffect>) {
     if keys.just_pressed(KeyCode::Space) {
         audio.play(sound_effect.0.clone_weak());
-        
     }
 }
 
@@ -279,12 +346,13 @@ fn move_particles(
 }
 
 fn check_collisions(
-    audio : Res<Audio>, 
-    die : Res<DieSoundEffect>,
-    player: Query<&mut Transform, (With<Player>, Without<Obstacle>)>,
+    mut commands: Commands,
+    audio: Res<Audio>,
+    die: Res<DieSoundEffect>,
+    player: Query<(&Transform, Entity), (With<Player>, Without<Obstacle>)>,
     obstacles: Query<&mut Transform, (With<Obstacle>, Without<Player>)>,
 ) {
-    let player = player.single();
+    let (player, player_entity) = player.single();
     let player_pos = player.translation;
     let player_size = Vec2::new(PLAYER_WIDTH, PLAYER_HEIGHT);
 
@@ -293,11 +361,21 @@ fn check_collisions(
         let obstacle_size = Vec2::new(PIPE_WIDTH, PIPE_HEIGHT);
         let collision = collide_aabb::collide(player_pos, player_size, obstacle_pos, obstacle_size);
         match collision {
-            Some(_) => { audio.play(die.clone());},
+            Some(_) => {
+                audio.play(die.clone());
+                commands.entity(player_entity).despawn();
+                commands.insert_resource(NextState(GameState::GameOver));
+            }
             None => {}
         }
     }
-    
+}
+
+fn cleanup<TEntity>(mut entities: Query<(Entity, With<TEntity>)>,
+mut commands: Commands,)  where TEntity : Component{
+    for (entity, _) in entities.iter_mut() {
+        commands.entity(entity).despawn();
+    }
 }
 
 fn main() {
@@ -314,29 +392,62 @@ fn main() {
                 .set(ImagePlugin::default_nearest())
                 .set(WindowPlugin {
                     window: WindowDescriptor {
-                      width: 400.0,
-                      ..default()
+                        width: 400.0,
+                        ..default()
                     },
                     ..default()
-                  })
+                })
                 .set(LogPlugin {
                     level: bevy::log::Level::WARN,
                     filter: "bevy_hanabi=warn,spawn=trace".to_string(),
                 }),
         )
-        .add_plugin(HanabiPlugin)
+        //.add_plugin(HanabiPlugin)
         .add_startup_system(global_setup)
-        .add_startup_system(player_setup)
-        .add_startup_system(obstacle_setup)
-        .add_startup_system(background_setup)
-        .add_system(animation)
-        .add_system(move_particles)
-        .add_system(move_pipes)
-        .add_system(scroll_background)
-        .add_system(gravity)
-        .add_system(keyboard_input)
-        .add_system(check_collisions)
-        .add_system(play_flap)
+        .add_loopless_state(GameState::MainMenu)
+
+        .add_enter_system(GameState::MainMenu, menu_setup)
+        .add_exit_system(GameState::MainMenu, cleanup::<MenuEntity>)
+
+        .add_exit_system(GameState::InGame, cleanup::<InGameEntity>)
+        .add_enter_system(GameState::InGame, player_setup)
+        //.add_enter_system(GameState::InGame, rainbow_fart_setup)
+        .add_enter_system(GameState::InGame, obstacle_setup)
+        .add_enter_system(GameState::InGame, background_setup)
+
+        .add_enter_system(GameState::GameOver, gameover_setup)
+        .add_exit_system(GameState::GameOver, cleanup::<GameOverEntity>)
+
+        .add_system_set(
+            ConditionSet::new()
+                .run_in_state(GameState::MainMenu)
+                .with_system(menu_keyboard_input)
+                .into()
+        )
+
+        .add_system_set(
+            ConditionSet::new()
+                .run_in_state(GameState::InGame)
+                .with_system(animation)
+                //.with_system(move_particles)
+                .with_system(scroll_background)
+                .with_system(move_pipes)
+                .with_system(gravity)
+                .with_system(keyboard_input)
+                .with_system(check_collisions)
+                .with_system(play_flap)
+                .into()
+        )
+
+        .add_system_set(
+            ConditionSet::new()
+                .run_in_state(GameState::GameOver)
+                .with_system(gameover_keyboard_input)
+                .into()
+        ) 
+
         .add_system(close_on_esc)
+
+        
         .run();
 }

@@ -10,6 +10,7 @@ edition = "2021"
 bevy = { version = "0.9", features = ["dynamic"] }
 rand = "0.8.5"
 bevy_hanabi = { version = "0.5", default-features = false, features = [ "2d" ] }
+iyes_loopless = "0.9.1"
 
 # Enable a small amount of optimization in debug mode
 [profile.dev]
