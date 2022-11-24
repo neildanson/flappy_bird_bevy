@@ -10,6 +10,7 @@ use bevy::{
 };
 use bevy_hanabi::prelude::*;
 use iyes_loopless::prelude::*;
+use rand::{thread_rng, Rng};
 
 const PLAYER_WIDTH: f32 = 34.0;
 const PLAYER_HEIGHT: f32 = 24.0;
@@ -17,6 +18,7 @@ const PLAYER_FRAMES: usize = 4;
 const PLAYER_LAYER: f32 = 4.0;
 const PIPE_WIDTH: f32 = 52.0;
 const PIPE_HEIGHT: f32 = 320.0;
+const PIPE_POS : f32 = 250.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum GameState {
@@ -25,13 +27,34 @@ enum GameState {
     GameOver
 }
 
+fn create<T: Default + Component>() -> T
+{
+    T::default()
+}
+
 #[derive(Component)]
 struct MenuEntity;
+impl Default for MenuEntity {
+    fn default() -> Self {
+        MenuEntity
+    }
+}
 #[derive(Component)]
 struct InGameEntity;
+impl Default for InGameEntity {
+    fn default() -> Self {
+        InGameEntity
+    }
+}
 
 #[derive(Component)]
 struct GameOverEntity;
+impl Default for GameOverEntity {
+    fn default() -> Self {
+        GameOverEntity
+    }
+}
+
 
 #[derive(Component)]
 struct Player;
@@ -69,7 +92,6 @@ struct AnimationTimer(Timer);
 //struct Random(rand_chacha::ChaCha8Rng);
 
 fn global_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    //Dont really need HDR - need to figure out how it works ;)
     let camera = Camera2dBundle {
         camera: Camera { ..default() },
         projection: OrthographicProjection {
@@ -94,6 +116,10 @@ fn global_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 fn menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let sprite = SpriteBundle {
         texture: asset_server.load("message.png"),
+        transform: Transform {
+            translation: Vec3::new(0.0, 0.0, 3.0),
+            ..Transform::default()
+        },
         ..default()
     };
 
@@ -112,6 +138,10 @@ fn menu_keyboard_input(keys: Res<Input<KeyCode>>, mut commands: Commands) {
 fn gameover_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let sprite = SpriteBundle {
         texture: asset_server.load("gameover.png"),
+        transform: Transform {
+            translation: Vec3::new(0.0, 0.0, 3.0),
+            ..Transform::default()
+        },
         ..default()
     };
 
@@ -125,22 +155,22 @@ fn gameover_keyboard_input(keys: Res<Input<KeyCode>>, mut commands: Commands) {
     }
 }
 
-fn obstacle_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn obstacle_setup<TEntity : Default + Component>(mut commands: Commands, asset_server: Res<AssetServer>) {
     for i in 2..6 {
         let sprite = SpriteBundle {
             transform: Transform {
-                translation: Vec3::new(i as f32 * 200.0, -250.0, 1.0),
+                translation: Vec3::new(i as f32 * 200.0, -PIPE_POS, 1.0),
                 ..Transform::default()
             },
             texture: asset_server.load("pipe-green.png"),
             ..default()
         };
 
-        commands.spawn(sprite).insert(Obstacle).insert(InGameEntity);
+        commands.spawn(sprite).insert(Obstacle).insert(create::<TEntity>());
 
         let sprite = SpriteBundle {
             transform: Transform {
-                translation: Vec3::new(i as f32 * 200.0, 250.0, 1.0),
+                translation: Vec3::new(i as f32 * 200.0, PIPE_POS, 1.0),
                 ..Transform::default()
             },
             texture: asset_server.load("pipe-green.png"),
@@ -151,11 +181,11 @@ fn obstacle_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             ..default()
         };
 
-        commands.spawn(sprite).insert(Obstacle).insert(InGameEntity);
+        commands.spawn(sprite).insert(Obstacle).insert(create::<TEntity>());
     }
 }
 
-fn background_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn background_setup<TEntity : Default + Component>(mut commands: Commands, asset_server: Res<AssetServer>) {
     for i in -3..3 {
         let sprite = SpriteBundle {
             transform: Transform {
@@ -166,7 +196,7 @@ fn background_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             ..default()
         };
 
-        commands.spawn(sprite).insert(Background).insert(InGameEntity);
+        commands.spawn(sprite).insert(Background).insert(create::<TEntity>());
     }
 }
 
@@ -327,9 +357,16 @@ fn scroll_background(mut pipes: Query<&mut Transform, With<Background>>) {
 }
 
 fn move_pipes(mut pipes: Query<&mut Transform, With<Obstacle>>) {
+    let mut  rng = thread_rng();
+    let random = rng.gen::<f32>() - 1.0;
     for mut t in pipes.iter_mut() {
         if t.translation.x <= -400.0 {
             t.translation.x = 400.0;
+            if t.translation.y > 0.0 {
+                t.translation.y = PIPE_POS + 20.0 * random;
+            } else  {
+                t.translation.y = -PIPE_POS + 20.0 * random;
+            }
         } else {
             t.translation.x -= 2.0;
         }
@@ -386,13 +423,13 @@ fn main() {
 
     App::new()
         .insert_resource(options)
-        .insert_resource(ClearColor(Color::DARK_GRAY))
+        .insert_resource(ClearColor(Color::rgb_u8(255, 87, 51)))
         .add_plugins(
             DefaultPlugins
                 .set(ImagePlugin::default_nearest())
                 .set(WindowPlugin {
                     window: WindowDescriptor {
-                        width: 400.0,
+                        width: 800.0,
                         ..default()
                     },
                     ..default()
@@ -407,13 +444,15 @@ fn main() {
         .add_loopless_state(GameState::MainMenu)
 
         .add_enter_system(GameState::MainMenu, menu_setup)
+        .add_enter_system(GameState::MainMenu, obstacle_setup::<MenuEntity>)
+        .add_enter_system(GameState::MainMenu, background_setup::<MenuEntity>)
         .add_exit_system(GameState::MainMenu, cleanup::<MenuEntity>)
 
         .add_exit_system(GameState::InGame, cleanup::<InGameEntity>)
         .add_enter_system(GameState::InGame, player_setup)
         //.add_enter_system(GameState::InGame, rainbow_fart_setup)
-        .add_enter_system(GameState::InGame, obstacle_setup)
-        .add_enter_system(GameState::InGame, background_setup)
+        .add_enter_system(GameState::InGame, obstacle_setup::<InGameEntity>)
+        .add_enter_system(GameState::InGame, background_setup::<InGameEntity>)
 
         .add_enter_system(GameState::GameOver, gameover_setup)
         .add_exit_system(GameState::GameOver, cleanup::<GameOverEntity>)
@@ -421,6 +460,8 @@ fn main() {
         .add_system_set(
             ConditionSet::new()
                 .run_in_state(GameState::MainMenu)
+                .with_system(scroll_background)
+                .with_system(move_pipes)
                 .with_system(menu_keyboard_input)
                 .into()
         )
