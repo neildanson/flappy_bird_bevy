@@ -16,7 +16,7 @@ const PLAYER_HEIGHT: f32 = 24.0;
 const PLAYER_FRAMES: usize = 4;
 const PIPE_WIDTH: f32 = 52.0;
 const PIPE_HEIGHT: f32 = 320.0;
-const PIPE_POS : f32 = 225.0;
+const PIPE_POS : f32 = 235.0;
 const FLOOR_WIDTH : f32 = 336.0;
 const FLOOR_HEIGHT : f32 = 112.0;
 const FLOOR_POS : f32 = 200.0;
@@ -89,20 +89,27 @@ struct Velocity {
     y: f32,
 }
 
-#[derive(Resource, Deref)]
-struct FlapSoundEffect(Handle<AudioSource>);
-
-#[derive(Resource, Deref)]
-struct DieSoundEffect(Handle<AudioSource>);
-
 impl Velocity {
     fn default() -> Self {
         Velocity { y: 0.0 }
     }
 }
 
+#[derive(Resource, Deref)]
+struct FlapSoundEffect(Handle<AudioSource>);
+
+#[derive(Resource, Deref)]
+struct DieSoundEffect(Handle<AudioSource>);
+
+#[derive(Component)]
+struct Score(u32);
+
 #[derive(Component, Deref, DerefMut)]
 struct AnimationTimer(Timer);
+
+
+#[derive(Component, Deref, DerefMut)]
+struct ScoreTimer(Timer);
 
 //#[derive(Component, Deref, DerefMut)]
 //struct Random(rand_chacha::ChaCha8Rng);
@@ -307,6 +314,53 @@ fn rainbow_fart_setup(
         .insert(InGameEntity);
 }
 
+fn score_setup(mut commands: Commands,asset_server : Res<AssetServer>) {
+    commands.spawn((
+        // Create a TextBundle that has a Text with a single section.
+        TextBundle::from_section(
+            // Accepts a `String` or any type that converts into a `String`, such as `&str`
+            "hello\nbevy!",
+            TextStyle {
+                font: asset_server.load("FlappyBirdy.ttf"),
+                font_size: 100.0,
+                color: Color::WHITE,
+            },
+        ) // Set the alignment of the Text
+        .with_text_alignment(TextAlignment::TOP_LEFT)
+        // Set the style of the TextBundle itself.
+        .with_style(Style {
+            position_type: PositionType::Absolute,
+            position: UiRect {
+                top: Val::Px(5.0),
+                left: Val::Px(5.0),
+                ..default()
+            },
+            ..default()
+        }),
+        
+    ))
+    .insert(Score(0))
+    .insert(InGameEntity)
+    .insert(ScoreTimer(Timer::from_seconds(
+        0.5,
+        TimerMode::Repeating,
+    )));
+}
+
+fn score_render_system(mut query: Query<(&mut Text, &Score)>) {
+    let (mut text, score) = query.single_mut();
+        
+    text.sections[0].value = format!("Score : {:06}", score.0).to_string();
+}
+
+fn score_update_system(time: Res<Time>,mut query: Query<(&mut Score, &mut ScoreTimer)>) {
+    let (mut score, mut timer)= query.single_mut();
+    timer.tick(time.delta());
+        if timer.just_finished() {
+            score.0 = score.0 + 1;
+        }
+}
+
 fn player_setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -504,6 +558,7 @@ fn main() {
 
         .add_exit_system(GameState::InGame, cleanup::<InGameEntity>)
         .add_enter_system(GameState::InGame, player_setup)
+        .add_enter_system(GameState::InGame, score_setup)
         .add_enter_system(GameState::InGame, rainbow_fart_setup)
         .add_enter_system(GameState::InGame, pipe_setup::<InGameEntity>)
         .add_enter_system(GameState::InGame, floor_setup::<InGameEntity>)
@@ -531,10 +586,12 @@ fn main() {
                 .with_system(move_pipes)
                 .with_system(move_floor)
                 .with_system(gravity)
+                .with_system(score_update_system)
                 .with_system(rotate)
                 .with_system(keyboard_input)
                 .with_system(check_collisions)
                 .with_system(play_flap)
+                .with_system(score_render_system)
                 .into()
         )
 
