@@ -9,9 +9,14 @@ edition = "2021"
 #bevy = "0.8.1"
 bevy = { version = "0.9", features = ["dynamic"] }
 rand = "0.8.5"
-bevy_hanabi = { version = "0.5.0", default-features = false, features = [ "2d" ] }
+#bevy_hanabi = { version = "0.5.0", default-features = false, features = [ "2d" ] }
 iyes_loopless = "0.9.1"
-
+[dependencies.bevy_hanabi]
+# version = "0.5"
+git = "https://github.com/djeedai/bevy_hanabi"
+rev = "84a6d4fad47bacea229c955d34d192faa2650fdf"
+default-features = false
+features = ["2d"]
 # Enable a small amount of optimization in debug mode
 [profile.dev]
 opt-level = 1
