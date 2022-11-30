@@ -1,9 +1,7 @@
 use bevy::{
     log::LogPlugin,
     prelude::*,
-    render::{
-        settings::{WgpuFeatures, WgpuSettings},
-    },
+    render::settings::{WgpuFeatures, WgpuSettings},
     sprite::collide_aabb,
     window::close_on_esc,
 };
@@ -16,29 +14,26 @@ const PLAYER_HEIGHT: f32 = 24.0;
 const PLAYER_FRAMES: usize = 4;
 const PIPE_WIDTH: f32 = 52.0;
 const PIPE_HEIGHT: f32 = 320.0;
-const PIPE_POS : f32 = 235.0;
-const FLOOR_WIDTH : f32 = 336.0;
-const FLOOR_HEIGHT : f32 = 112.0;
-const FLOOR_POS : f32 = 200.0;
-const SCROLL_SPEED : f32 = 2.0;
+const PIPE_POS: f32 = 235.0;
+const FLOOR_WIDTH: f32 = 336.0;
+const FLOOR_HEIGHT: f32 = 112.0;
+const FLOOR_POS: f32 = 200.0;
+const SCROLL_SPEED: f32 = 2.0;
 
-
-const MENU_LAYER : f32 = 6.0;
+const MENU_LAYER: f32 = 6.0;
 const PLAYER_LAYER: f32 = 5.0;
-const PIPE_LAYER : f32 = 3.0;
-const FLOOR_LAYER : f32 = 4.0;
-const BACKGROUND_LAYER : f32 = 1.0;
-
+const PIPE_LAYER: f32 = 3.0;
+const FLOOR_LAYER: f32 = 4.0;
+const BACKGROUND_LAYER: f32 = 1.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum GameState {
     MainMenu,
     InGame,
-    GameOver
+    GameOver,
 }
 
-fn create<T: Default + Component>() -> T
-{
+fn create<T: Default + Component>() -> T {
     T::default()
 }
 
@@ -64,7 +59,6 @@ impl Default for GameOverEntity {
         GameOverEntity
     }
 }
-
 
 #[derive(Component)]
 struct Player;
@@ -107,7 +101,6 @@ struct Score(u32);
 #[derive(Component, Deref, DerefMut)]
 struct AnimationTimer(Timer);
 
-
 #[derive(Component, Deref, DerefMut)]
 struct ScoreTimer(Timer);
 
@@ -133,10 +126,9 @@ fn global_setup(mut commands: Commands, asset_server: Res<AssetServer>, audio: R
     commands.insert_resource(DieSoundEffect(die));
 
     audio.play_with_settings(
-            asset_server.load("Music.ogg"),
-            PlaybackSettings::LOOP.with_volume(0.75),
-        );
-    
+        asset_server.load("Music.ogg"),
+        PlaybackSettings::LOOP.with_volume(0.75),
+    );
 }
 
 //Menu
@@ -160,7 +152,6 @@ fn menu_keyboard_input(keys: Res<Input<KeyCode>>, mut commands: Commands) {
     }
 }
 
-
 // Game Over
 
 fn gameover_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -176,14 +167,16 @@ fn gameover_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(sprite).insert(GameOverEntity);
 }
 
-
 fn gameover_keyboard_input(keys: Res<Input<KeyCode>>, mut commands: Commands) {
     if keys.just_pressed(KeyCode::Space) {
         commands.insert_resource(NextState(GameState::MainMenu));
     }
 }
 
-fn pipe_setup<TEntity : Default + Component>(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn pipe_setup<TEntity: Default + Component>(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+) {
     for i in 2..6 {
         let sprite = SpriteBundle {
             transform: Transform {
@@ -194,7 +187,11 @@ fn pipe_setup<TEntity : Default + Component>(mut commands: Commands, asset_serve
             ..default()
         };
 
-        commands.spawn(sprite).insert(Pipe).insert(Collidable(PIPE_WIDTH, PIPE_HEIGHT)).insert(create::<TEntity>());
+        commands
+            .spawn(sprite)
+            .insert(Pipe)
+            .insert(Collidable(PIPE_WIDTH, PIPE_HEIGHT))
+            .insert(create::<TEntity>());
 
         let sprite = SpriteBundle {
             transform: Transform {
@@ -209,11 +206,18 @@ fn pipe_setup<TEntity : Default + Component>(mut commands: Commands, asset_serve
             ..default()
         };
 
-        commands.spawn(sprite).insert(Pipe).insert(Collidable(PIPE_WIDTH, PIPE_HEIGHT)).insert(create::<TEntity>());
+        commands
+            .spawn(sprite)
+            .insert(Pipe)
+            .insert(Collidable(PIPE_WIDTH, PIPE_HEIGHT))
+            .insert(create::<TEntity>());
     }
 }
 
-fn floor_setup<TEntity : Default + Component>(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn floor_setup<TEntity: Default + Component>(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+) {
     for i in 0..10 {
         let sprite = SpriteBundle {
             transform: Transform {
@@ -224,11 +228,18 @@ fn floor_setup<TEntity : Default + Component>(mut commands: Commands, asset_serv
             ..default()
         };
 
-        commands.spawn(sprite).insert(Floor).insert(Collidable(FLOOR_WIDTH, FLOOR_HEIGHT)).insert(create::<TEntity>());
+        commands
+            .spawn(sprite)
+            .insert(Floor)
+            .insert(Collidable(FLOOR_WIDTH, FLOOR_HEIGHT))
+            .insert(create::<TEntity>());
     }
 }
 
-fn background_setup<TEntity : Default + Component>(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn background_setup<TEntity: Default + Component>(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+) {
     for i in -3..3 {
         let sprite = SpriteBundle {
             transform: Transform {
@@ -239,7 +250,10 @@ fn background_setup<TEntity : Default + Component>(mut commands: Commands, asset
             ..default()
         };
 
-        commands.spawn(sprite).insert(Background).insert(create::<TEntity>());
+        commands
+            .spawn(sprite)
+            .insert(Background)
+            .insert(create::<TEntity>());
     }
 }
 
@@ -248,7 +262,6 @@ fn rainbow_fart_setup(
     mut effects: ResMut<Assets<EffectAsset>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-
 ) {
     let mut color_gradient1 = Gradient::new();
     color_gradient1.add_key(0.0, Vec4::splat(1.0));
@@ -303,62 +316,57 @@ fn rainbow_fart_setup(
         ))
         .with_children(|p| {
             // Reference cube to visualize the emit origin
-            p.spawn((
-                PbrBundle {
-                    mesh: cube.clone(),
-                    material: mat.clone(),
-                    ..Default::default()
-                },
-            ));
+            p.spawn((PbrBundle {
+                mesh: cube.clone(),
+                material: mat.clone(),
+                ..Default::default()
+            },));
         })
         .insert(InGameEntity);
 }
 
-fn score_setup(mut commands: Commands,asset_server : Res<AssetServer>) {
-    commands.spawn((
-        // Create a TextBundle that has a Text with a single section.
-        TextBundle::from_section(
-            // Accepts a `String` or any type that converts into a `String`, such as `&str`
-            "hello\nbevy!",
-            TextStyle {
-                font: asset_server.load("FlappyBirdy.ttf"),
-                font_size: 100.0,
-                color: Color::WHITE,
-            },
-        ) // Set the alignment of the Text
-        .with_text_alignment(TextAlignment::TOP_LEFT)
-        // Set the style of the TextBundle itself.
-        .with_style(Style {
-            position_type: PositionType::Absolute,
-            position: UiRect {
-                top: Val::Px(5.0),
-                left: Val::Px(5.0),
+fn score_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+    commands
+        .spawn((
+            // Create a TextBundle that has a Text with a single section.
+            TextBundle::from_section(
+                // Accepts a `String` or any type that converts into a `String`, such as `&str`
+                "hello\nbevy!",
+                TextStyle {
+                    font: asset_server.load("FlappyBirdy.ttf"),
+                    font_size: 100.0,
+                    color: Color::WHITE,
+                },
+            ) // Set the alignment of the Text
+            .with_text_alignment(TextAlignment::TOP_LEFT)
+            // Set the style of the TextBundle itself.
+            .with_style(Style {
+                position_type: PositionType::Absolute,
+                position: UiRect {
+                    top: Val::Px(5.0),
+                    left: Val::Px(5.0),
+                    ..default()
+                },
                 ..default()
-            },
-            ..default()
-        }),
-        
-    ))
-    .insert(Score(0))
-    .insert(InGameEntity)
-    .insert(ScoreTimer(Timer::from_seconds(
-        0.5,
-        TimerMode::Repeating,
-    )));
+            }),
+        ))
+        .insert(Score(0))
+        .insert(InGameEntity)
+        .insert(ScoreTimer(Timer::from_seconds(0.5, TimerMode::Repeating)));
 }
 
 fn score_render_system(mut query: Query<(&mut Text, &Score)>) {
     let (mut text, score) = query.single_mut();
-        
+
     text.sections[0].value = format!("Score : {:06}", score.0).to_string();
 }
 
-fn score_update_system(time: Res<Time>,mut query: Query<(&mut Score, &mut ScoreTimer)>) {
-    let (mut score, mut timer)= query.single_mut();
+fn score_update_system(time: Res<Time>, mut query: Query<(&mut Score, &mut ScoreTimer)>) {
+    let (mut score, mut timer) = query.single_mut();
     timer.tick(time.delta());
-        if timer.just_finished() {
-            score.0 = score.0 + 1;
-        }
+    if timer.just_finished() {
+        score.0 = score.0 + 1;
+    }
 }
 
 fn player_setup(
@@ -386,9 +394,9 @@ fn player_setup(
         ..default()
     };
 
-    /* 
-    
-        */
+    /*
+
+    */
 
     commands
         .spawn(animation)
@@ -422,7 +430,11 @@ fn gravity(mut query: Query<(&mut Velocity, &mut Transform)>) {
 
 fn rotate(mut query: Query<(&Velocity, &mut Transform)>) {
     let (velocity, mut transform) = query.single_mut();
-    *transform = transform.with_rotation(Quat::from_rotation_z(f32::clamp(velocity.y / 2.0, -1.0, 1.0)));
+    *transform = transform.with_rotation(Quat::from_rotation_z(f32::clamp(
+        velocity.y / 2.0,
+        -1.0,
+        1.0,
+    )));
 }
 
 fn animation(
@@ -454,14 +466,14 @@ fn scroll_background(mut pipes: Query<&mut Transform, With<Background>>) {
 }
 
 fn move_pipes(mut pipes: Query<&mut Transform, With<Pipe>>) {
-    let mut  rng = thread_rng();
+    let mut rng = thread_rng();
     let random = rng.gen::<f32>() - 1.0;
     for mut t in pipes.iter_mut() {
         if t.translation.x <= -400.0 {
             t.translation.x = 400.0;
             if t.translation.y > 0.0 {
                 t.translation.y = PIPE_POS + 20.0 * random;
-            } else  {
+            } else {
                 t.translation.y = -PIPE_POS + 20.0 * random;
             }
         } else {
@@ -515,8 +527,10 @@ fn check_collisions(
     }
 }
 
-fn cleanup<TEntity>(mut entities: Query<(Entity, With<TEntity>)>,
-mut commands: Commands,)  where TEntity : Component{
+fn cleanup<TEntity>(mut entities: Query<(Entity, With<TEntity>)>, mut commands: Commands)
+where
+    TEntity: Component,
+{
     for (entity, _) in entities.iter_mut() {
         commands.entity(entity).despawn();
     }
@@ -549,13 +563,11 @@ fn main() {
         .add_plugin(HanabiPlugin)
         .add_startup_system(global_setup)
         .add_loopless_state(GameState::MainMenu)
-
         .add_enter_system(GameState::MainMenu, menu_setup)
         .add_enter_system(GameState::MainMenu, pipe_setup::<MenuEntity>)
         .add_enter_system(GameState::MainMenu, floor_setup::<MenuEntity>)
         .add_enter_system(GameState::MainMenu, background_setup::<MenuEntity>)
         .add_exit_system(GameState::MainMenu, cleanup::<MenuEntity>)
-
         .add_exit_system(GameState::InGame, cleanup::<InGameEntity>)
         .add_enter_system(GameState::InGame, player_setup)
         .add_enter_system(GameState::InGame, score_setup)
@@ -563,10 +575,8 @@ fn main() {
         .add_enter_system(GameState::InGame, pipe_setup::<InGameEntity>)
         .add_enter_system(GameState::InGame, floor_setup::<InGameEntity>)
         .add_enter_system(GameState::InGame, background_setup::<InGameEntity>)
-
         .add_enter_system(GameState::GameOver, gameover_setup)
         .add_exit_system(GameState::GameOver, cleanup::<GameOverEntity>)
-
         .add_system_set(
             ConditionSet::new()
                 .run_in_state(GameState::MainMenu)
@@ -574,9 +584,8 @@ fn main() {
                 .with_system(move_pipes)
                 .with_system(move_floor)
                 .with_system(menu_keyboard_input)
-                .into()
+                .into(),
         )
-
         .add_system_set(
             ConditionSet::new()
                 .run_in_state(GameState::InGame)
@@ -592,18 +601,14 @@ fn main() {
                 .with_system(check_collisions)
                 .with_system(play_flap)
                 .with_system(score_render_system)
-                .into()
+                .into(),
         )
-
         .add_system_set(
             ConditionSet::new()
                 .run_in_state(GameState::GameOver)
                 .with_system(gameover_keyboard_input)
-                .into()
-        ) 
-
+                .into(),
+        )
         .add_system(close_on_esc)
-
-        
         .run();
 }
