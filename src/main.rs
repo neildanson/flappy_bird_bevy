@@ -14,7 +14,7 @@ const PLAYER_HEIGHT: f32 = 24.0;
 const PLAYER_FRAMES: usize = 4;
 const PIPE_WIDTH: f32 = 52.0;
 const PIPE_HEIGHT: f32 = 320.0;
-const PIPE_POS: f32 = 235.0;
+const PIPE_POS: f32 = 265.0;
 const FLOOR_WIDTH: f32 = 336.0;
 const FLOOR_HEIGHT: f32 = 112.0;
 const FLOOR_POS: f32 = 200.0;
@@ -275,7 +275,7 @@ fn rainbow_fart_setup(
     size_gradient1.add_key(0.8, Vec2::splat(0.8));
     size_gradient1.add_key(1.0, Vec2::splat(0.0));
 
-    let effect1 = effects.add(
+    let effect = effects.add(
         EffectAsset {
             //name: "emit:rate".to_string(),
             capacity: 32768,
@@ -309,7 +309,7 @@ fn rainbow_fart_setup(
         .spawn((
             //Name::new("emit:rate"),
             ParticleEffectBundle {
-                effect: ParticleEffect::new(effect1).with_z_layer_2d(Some(FLOOR_LAYER)),
+                effect: ParticleEffect::new(effect).with_z_layer_2d(Some(FLOOR_LAYER)),
                 transform: Transform::from_translation(Vec3::new(-10., 0., 5.)),
                 ..Default::default()
             },
@@ -331,7 +331,7 @@ fn score_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             // Create a TextBundle that has a Text with a single section.
             TextBundle::from_section(
                 // Accepts a `String` or any type that converts into a `String`, such as `&str`
-                "hello\nbevy!",
+                "",
                 TextStyle {
                     font: asset_server.load("FlappyBirdy.ttf"),
                     font_size: 100.0,
@@ -358,7 +358,7 @@ fn score_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 fn score_render_system(mut query: Query<(&mut Text, &Score)>) {
     let (mut text, score) = query.single_mut();
 
-    text.sections[0].value = format!("Score : {:06}", score.0).to_string();
+    text.sections[0].value = format!("Score : {:04}", score.0).to_string();
 }
 
 fn score_update_system(time: Res<Time>, mut query: Query<(&mut Score, &mut ScoreTimer)>) {
@@ -551,6 +551,7 @@ fn main() {
                 .set(WindowPlugin {
                     window: WindowDescriptor {
                         width: 800.0,
+                        title: "Flappy Bird".to_string(),
                         ..default()
                     },
                     ..default()
@@ -568,13 +569,13 @@ fn main() {
         .add_enter_system(GameState::MainMenu, floor_setup::<MenuEntity>)
         .add_enter_system(GameState::MainMenu, background_setup::<MenuEntity>)
         .add_exit_system(GameState::MainMenu, cleanup::<MenuEntity>)
-        .add_exit_system(GameState::InGame, cleanup::<InGameEntity>)
         .add_enter_system(GameState::InGame, player_setup)
         .add_enter_system(GameState::InGame, score_setup)
         .add_enter_system(GameState::InGame, rainbow_fart_setup)
         .add_enter_system(GameState::InGame, pipe_setup::<InGameEntity>)
         .add_enter_system(GameState::InGame, floor_setup::<InGameEntity>)
         .add_enter_system(GameState::InGame, background_setup::<InGameEntity>)
+        .add_exit_system(GameState::InGame, cleanup::<InGameEntity>)
         .add_enter_system(GameState::GameOver, gameover_setup)
         .add_exit_system(GameState::GameOver, cleanup::<GameOverEntity>)
         .add_system_set(
