@@ -260,8 +260,6 @@ fn background_setup<TEntity: Default + Component>(
 fn rainbow_fart_setup(
     mut commands: Commands,
     mut effects: ResMut<Assets<EffectAsset>>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     let mut color_gradient1 = Gradient::new();
     color_gradient1.add_key(0.0, Vec4::splat(1.0));
@@ -299,12 +297,6 @@ fn rainbow_fart_setup(
         }),
     );
 
-    let cube = meshes.add(Mesh::from(shape::Quad {
-        size: Vec2::splat(2.0),
-        ..Default::default()
-    }));
-
-    let mat = materials.add(Color::PURPLE.into());
     commands
         .spawn((
             //Name::new("emit:rate"),
@@ -314,14 +306,6 @@ fn rainbow_fart_setup(
                 ..Default::default()
             },
         ))
-        .with_children(|p| {
-            // Reference cube to visualize the emit origin
-            p.spawn((PbrBundle {
-                mesh: cube.clone(),
-                material: mat.clone(),
-                ..Default::default()
-            },));
-        })
         .insert(InGameEntity);
 }
 
