@@ -19,6 +19,7 @@ const FLOOR_WIDTH: f32 = 336.0;
 const FLOOR_HEIGHT: f32 = 112.0;
 const FLOOR_POS: f32 = 200.0;
 const SCROLL_SPEED: f32 = 2.0;
+const BACKGROUND_WIDTH: f32 = 288.0;
 
 const MENU_LAYER: f32 = 6.0;
 const PLAYER_LAYER: f32 = 5.0;
@@ -246,7 +247,7 @@ fn background_setup<TEntity: Default + Component>(
     for i in -3..3 {
         let sprite = SpriteBundle {
             transform: Transform {
-                translation: Vec3::new(i as f32 * 288.0, 0.0, BACKGROUND_LAYER),
+                translation: Vec3::new(i as f32 * BACKGROUND_WIDTH, 0.0, BACKGROUND_LAYER),
                 ..Transform::default()
             },
             texture: asset_server.load("background-day.png"),
@@ -260,10 +261,7 @@ fn background_setup<TEntity: Default + Component>(
     }
 }
 
-fn rainbow_fart_onetime_setup(
-    mut commands: Commands,
-    mut effects: ResMut<Assets<EffectAsset>>,
-) {
+fn rainbow_fart_onetime_setup(mut commands: Commands, mut effects: ResMut<Assets<EffectAsset>>) {
     let mut color_gradient1 = Gradient::new();
     color_gradient1.add_key(0.0, Vec4::splat(1.0));
     color_gradient1.add_key(0.1, Vec4::new(1.0, 1.0, 0.0, 1.0));
@@ -298,28 +296,23 @@ fn rainbow_fart_onetime_setup(
         .render(SizeOverLifetimeModifier {
             gradient: size_gradient1,
         }),
-    );    
+    );
 
     commands.insert_resource(RainbowFart(effect));
 }
 
-fn rainbow_fart_setup(
-    mut commands: Commands,
-    effect: Res<RainbowFart>,
-) {    
+fn rainbow_fart_setup(mut commands: Commands, effect: Res<RainbowFart>) {
     commands
-        .spawn(
-            ParticleEffectBundle {
-                effect: ParticleEffect::new(effect.clone()).with_z_layer_2d(Some(FLOOR_LAYER)),
-                ..Default::default()
-            },
-        )
+        .spawn(ParticleEffectBundle {
+            effect: ParticleEffect::new(effect.clone()).with_z_layer_2d(Some(FLOOR_LAYER)),
+            ..Default::default()
+        })
         .insert(InGameEntity);
 }
 
 fn score_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands
-        .spawn((
+        .spawn(
             // Create a TextBundle that has a Text with a single section.
             TextBundle::from_section(
                 // Accepts a `String` or any type that converts into a `String`, such as `&str`
@@ -341,7 +334,7 @@ fn score_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                 },
                 ..default()
             }),
-        ))
+        )
         .insert(Score(0))
         .insert(InGameEntity)
         .insert(ScoreTimer(Timer::from_seconds(0.5, TimerMode::Repeating)));
@@ -445,8 +438,8 @@ fn animation(
 
 fn scroll_background(mut pipes: Query<&mut Transform, With<Background>>) {
     for mut t in pipes.iter_mut() {
-        if t.translation.x <= -500.0 {
-            t.translation.x = 500.0;
+        if t.translation.x <= -BACKGROUND_WIDTH * 2.0 {
+            t.translation.x = BACKGROUND_WIDTH * 2.0;
         } else {
             t.translation.x -= 0.5;
         }
