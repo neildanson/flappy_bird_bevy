@@ -90,6 +90,9 @@ impl Velocity {
 }
 
 #[derive(Resource, Deref)]
+struct RainbowFart(Handle<EffectAsset>);
+
+#[derive(Resource, Deref)]
 struct FlapSoundEffect(Handle<AudioSource>);
 
 #[derive(Resource, Deref)]
@@ -257,7 +260,7 @@ fn background_setup<TEntity: Default + Component>(
     }
 }
 
-fn rainbow_fart_setup(
+fn rainbow_fart_onetime_setup(
     mut commands: Commands,
     mut effects: ResMut<Assets<EffectAsset>>,
 ) {
@@ -295,17 +298,22 @@ fn rainbow_fart_setup(
         .render(SizeOverLifetimeModifier {
             gradient: size_gradient1,
         }),
-    );
+    );    
 
+    commands.insert_resource(RainbowFart(effect));
+}
+
+fn rainbow_fart_setup(
+    mut commands: Commands,
+    effect: Res<RainbowFart>,
+) {    
     commands
-        .spawn((
-            //Name::new("emit:rate"),
+        .spawn(
             ParticleEffectBundle {
-                effect: ParticleEffect::new(effect).with_z_layer_2d(Some(FLOOR_LAYER)),
-                transform: Transform::from_translation(Vec3::new(-10., 0., 5.)),
+                effect: ParticleEffect::new(effect.clone()).with_z_layer_2d(Some(FLOOR_LAYER)),
                 ..Default::default()
             },
-        ))
+        )
         .insert(InGameEntity);
 }
 
@@ -318,7 +326,7 @@ fn score_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                 "",
                 TextStyle {
                     font: asset_server.load("FlappyBirdy.ttf"),
-                    font_size: 100.0,
+                    font_size: 90.0,
                     color: Color::WHITE,
                 },
             ) // Set the alignment of the Text
@@ -377,10 +385,6 @@ fn player_setup(
 
         ..default()
     };
-
-    /*
-
-    */
 
     commands
         .spawn(animation)
@@ -547,6 +551,7 @@ fn main() {
         )
         .add_plugin(HanabiPlugin)
         .add_startup_system(global_setup)
+        .add_startup_system(rainbow_fart_onetime_setup)
         .add_loopless_state(GameState::MainMenu)
         .add_enter_system(GameState::MainMenu, menu_setup)
         .add_enter_system(GameState::MainMenu, pipe_setup::<MenuEntity>)
