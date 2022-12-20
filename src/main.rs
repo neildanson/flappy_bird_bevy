@@ -108,17 +108,14 @@ struct AnimationTimer(Timer);
 #[derive(Component, Deref, DerefMut)]
 struct ScoreTimer(Timer);
 
-//#[derive(Component, Deref, DerefMut)]
-//struct Random(rand_chacha::ChaCha8Rng);
-
 fn global_setup(mut commands: Commands, asset_server: Res<AssetServer>, audio: Res<Audio>) {
     let camera = Camera2dBundle {
-        camera: Camera { ..default() },
+        camera: Camera {
+            hdr:true, ..default() },
         projection: OrthographicProjection {
             scale: 0.5,
             ..OrthographicProjection::default()
         },
-
         ..Camera2dBundle::default()
     };
     commands.spawn(camera);
@@ -479,6 +476,8 @@ fn move_particles(
 ) {
     let player = player.single();
     let mut particles = particles.single_mut();
+    
+    particles.translation.x = player.translation.x;
     particles.translation.y = player.translation.y;
 }
 
@@ -486,10 +485,10 @@ fn check_collisions(
     mut commands: Commands,
     audio: Res<Audio>,
     die: Res<DieSoundEffect>,
-    player: Query<(&Transform, Entity), (With<Player>, Without<Collidable>)>,
+    player: Query<&Transform, (With<Player>, Without<Collidable>)>,
     obstacles: Query<(&mut Transform, &Collidable), Without<Player>>,
 ) {
-    let (player, player_entity) = player.single();
+    let player = player.single();
     let player_pos = player.translation;
     let player_size = Vec2::new(PLAYER_WIDTH, PLAYER_HEIGHT);
 
@@ -500,7 +499,6 @@ fn check_collisions(
         match collision {
             Some(_) => {
                 audio.play(die.clone());
-                commands.entity(player_entity).despawn();
                 commands.insert_resource(NextState(GameState::GameOver));
             }
             None => {}
@@ -573,7 +571,6 @@ fn main() {
             ConditionSet::new()
                 .run_in_state(GameState::InGame)
                 .with_system(animation)
-                .with_system(move_particles)
                 .with_system(scroll_background)
                 .with_system(move_pipes)
                 .with_system(move_floor)
@@ -584,6 +581,7 @@ fn main() {
                 .with_system(check_collisions)
                 .with_system(play_flap)
                 .with_system(score_render_system)
+                .with_system(move_particles)
                 .into(),
         )
         .add_system_set(
