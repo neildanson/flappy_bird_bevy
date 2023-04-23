@@ -7,10 +7,9 @@ edition = "2021"
 
 [dependencies]
 #bevy = "0.8.1"
-bevy = { version = "0.9.1", features = ["dynamic"] }
+bevy = "0.10.1"
 rand = "0.8.5"
-bevy_hanabi = { version = "0.5.1", default-features = false, features = [ "2d" ] }
-iyes_loopless = "0.9.1"
+bevy_hanabi = { version = "0.6.1", default-features = false, features = [ "2d" ] }
 # Enable a small amount of optimization in debug mode
 [profile.dev]
 opt-level = 1

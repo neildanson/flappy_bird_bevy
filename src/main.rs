@@ -6,7 +6,6 @@ use bevy::{
     window::close_on_esc,
 };
 use bevy_hanabi::prelude::*;
-use iyes_loopless::prelude::*;
 use rand::{thread_rng, Rng};
 
 const PLAYER_WIDTH: f32 = 34.0;
@@ -27,39 +26,21 @@ const PIPE_LAYER: f32 = 3.0;
 const FLOOR_LAYER: f32 = 4.0;
 const BACKGROUND_LAYER: f32 = 1.0;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(States, Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum GameState {
+    #[default]
     MainMenu,
     InGame,
     GameOver,
 }
 
-fn create<T: Default + Component>() -> T {
-    T::default()
-}
-
-#[derive(Component)]
+#[derive(Component, Default)]
 struct MenuEntity;
-impl Default for MenuEntity {
-    fn default() -> Self {
-        MenuEntity
-    }
-}
-#[derive(Component)]
+#[derive(Component, Default)]
 struct InGameEntity;
-impl Default for InGameEntity {
-    fn default() -> Self {
-        InGameEntity
-    }
-}
 
-#[derive(Component)]
+#[derive(Component, Default)]
 struct GameOverEntity;
-impl Default for GameOverEntity {
-    fn default() -> Self {
-        GameOverEntity
-    }
-}
 
 #[derive(Component)]
 struct Player;
@@ -79,15 +60,9 @@ struct Floor;
 #[derive(Component)]
 struct Background;
 
-#[derive(Component)]
+#[derive(Component, Default)]
 struct Velocity {
     y: f32,
-}
-
-impl Velocity {
-    fn default() -> Self {
-        Velocity { y: 0.0 }
-    }
 }
 
 #[derive(Resource, Deref)]
@@ -111,7 +86,9 @@ struct ScoreTimer(Timer);
 fn global_setup(mut commands: Commands, asset_server: Res<AssetServer>, audio: Res<Audio>) {
     let camera = Camera2dBundle {
         camera: Camera {
-            hdr:true, ..default() },
+            hdr: true,
+            ..default()
+        },
         projection: OrthographicProjection {
             scale: 0.5,
             ..OrthographicProjection::default()
@@ -147,9 +124,9 @@ fn menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(sprite).insert(MenuEntity);
 }
 
-fn menu_keyboard_input(keys: Res<Input<KeyCode>>, mut commands: Commands) {
+fn menu_keyboard_input(keys: Res<Input<KeyCode>>, mut next_state: ResMut<NextState<GameState>>) {
     if keys.just_pressed(KeyCode::Space) {
-        commands.insert_resource(NextState(GameState::InGame));
+        next_state.set(GameState::InGame);
     }
 }
 
@@ -168,9 +145,12 @@ fn gameover_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(sprite).insert(GameOverEntity);
 }
 
-fn gameover_keyboard_input(keys: Res<Input<KeyCode>>, mut commands: Commands) {
+fn gameover_keyboard_input(
+    keys: Res<Input<KeyCode>>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
     if keys.just_pressed(KeyCode::Space) {
-        commands.insert_resource(NextState(GameState::MainMenu));
+        next_state.set(GameState::MainMenu);
     }
 }
 
@@ -192,7 +172,7 @@ fn pipe_setup<TEntity: Default + Component>(
             .spawn(sprite)
             .insert(Pipe)
             .insert(Collidable(PIPE_WIDTH, PIPE_HEIGHT))
-            .insert(create::<TEntity>());
+            .insert(<TEntity>::default());
 
         let sprite = SpriteBundle {
             transform: Transform {
@@ -211,7 +191,7 @@ fn pipe_setup<TEntity: Default + Component>(
             .spawn(sprite)
             .insert(Pipe)
             .insert(Collidable(PIPE_WIDTH, PIPE_HEIGHT))
-            .insert(create::<TEntity>());
+            .insert(TEntity::default());
     }
 }
 
@@ -233,7 +213,7 @@ fn floor_setup<TEntity: Default + Component>(
             .spawn(sprite)
             .insert(Floor)
             .insert(Collidable(FLOOR_WIDTH, FLOOR_HEIGHT))
-            .insert(create::<TEntity>());
+            .insert(TEntity::default());
     }
 }
 
@@ -254,7 +234,7 @@ fn background_setup<TEntity: Default + Component>(
         commands
             .spawn(sprite)
             .insert(Background)
-            .insert(create::<TEntity>());
+            .insert(TEntity::default());
     }
 }
 
@@ -276,17 +256,18 @@ fn rainbow_fart_onetime_setup(mut commands: Commands, mut effects: ResMut<Assets
             //name: "emit:rate".to_string(),
             capacity: 32768,
             spawner: Spawner::rate(100.0.into()),
-            ..Default::default()
+            ..default()
         }
-        .init(PositionCircleModifier {
+        .init(InitPositionCircleModifier {
             radius: 0.05,
-            speed: 6.0.into(),
             dimension: ShapeDimension::Surface,
-            ..Default::default()
+            ..default()
         })
-        .update(AccelModifier {
-            accel: Vec3::new(-200., -3., 100.),
+        .init(InitVelocityCircleModifier {
+            speed: 0.1.into(),
+            ..default()
         })
+        .update(AccelModifier::constant(Vec3::new(-200., -3., 100.)))
         .render(ColorOverLifetimeModifier {
             gradient: color_gradient1,
         })
@@ -320,7 +301,7 @@ fn score_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                     color: Color::WHITE,
                 },
             ) // Set the alignment of the Text
-            .with_text_alignment(TextAlignment::TOP_LEFT)
+            .with_text_alignment(TextAlignment::Left)
             // Set the style of the TextBundle itself.
             .with_style(Style {
                 position_type: PositionType::Absolute,
@@ -476,17 +457,17 @@ fn move_particles(
 ) {
     let player = player.single();
     let mut particles = particles.single_mut();
-    
+
     particles.translation.x = player.translation.x;
     particles.translation.y = player.translation.y;
 }
 
 fn check_collisions(
-    mut commands: Commands,
     audio: Res<Audio>,
     die: Res<DieSoundEffect>,
     player: Query<&Transform, (With<Player>, Without<Collidable>)>,
     obstacles: Query<(&mut Transform, &Collidable), Without<Player>>,
+    mut next_state: ResMut<NextState<GameState>>,
 ) {
     let player = player.single();
     let player_pos = player.translation;
@@ -499,7 +480,7 @@ fn check_collisions(
         match collision {
             Some(_) => {
                 audio.play(die.clone());
-                commands.insert_resource(NextState(GameState::GameOver));
+                next_state.set(GameState::GameOver);
             }
             None => {}
         }
@@ -522,19 +503,19 @@ fn main() {
         .set(WgpuFeatures::VERTEX_WRITABLE_STORAGE, true);
 
     App::new()
-        .insert_resource(options)
+        //.insert_resource(options)
         .insert_resource(ClearColor(Color::rgb_u8(255, 87, 51)))
         .add_plugins(
             DefaultPlugins
                 .set(ImagePlugin::default_nearest())
-                .set(WindowPlugin {
-                    window: WindowDescriptor {
-                        width: 800.0,
-                        title: "Flappy Bird".to_string(),
-                        ..default()
-                    },
-                    ..default()
-                })
+                //.set(WindowPlugin {
+                //    window: WindowDescriptor {
+                //        width: 800.0,
+                //        title: "Flappy Bird".to_string(),
+                //        ..default()
+                //    },
+                //    ..default()
+                //})
                 .set(LogPlugin {
                     level: bevy::log::Level::WARN,
                     filter: "bevy_hanabi=warn,spawn=trace".to_string(),
@@ -543,53 +524,48 @@ fn main() {
         .add_plugin(HanabiPlugin)
         .add_startup_system(global_setup)
         .add_startup_system(rainbow_fart_onetime_setup)
-        .add_loopless_state(GameState::MainMenu)
-        .add_enter_system(GameState::MainMenu, menu_setup)
-        .add_enter_system(GameState::MainMenu, pipe_setup::<MenuEntity>)
-        .add_enter_system(GameState::MainMenu, floor_setup::<MenuEntity>)
-        .add_enter_system(GameState::MainMenu, background_setup::<MenuEntity>)
-        .add_exit_system(GameState::MainMenu, cleanup::<MenuEntity>)
-        .add_enter_system(GameState::InGame, player_setup)
-        .add_enter_system(GameState::InGame, score_setup)
-        .add_enter_system(GameState::InGame, rainbow_fart_setup)
-        .add_enter_system(GameState::InGame, pipe_setup::<InGameEntity>)
-        .add_enter_system(GameState::InGame, floor_setup::<InGameEntity>)
-        .add_enter_system(GameState::InGame, background_setup::<InGameEntity>)
-        .add_exit_system(GameState::InGame, cleanup::<InGameEntity>)
-        .add_enter_system(GameState::GameOver, gameover_setup)
-        .add_exit_system(GameState::GameOver, cleanup::<GameOverEntity>)
-        .add_system_set(
-            ConditionSet::new()
-                .run_in_state(GameState::MainMenu)
-                .with_system(scroll_background)
-                .with_system(move_pipes)
-                .with_system(move_floor)
-                .with_system(menu_keyboard_input)
-                .into(),
+        .add_state::<GameState>()
+        .add_system(menu_setup.in_set(OnUpdate(GameState::MainMenu)))
+        .add_systems(
+            (
+                pipe_setup::<MenuEntity>,
+                floor_setup::<MenuEntity>,
+                background_setup::<MenuEntity>,
+            )
+                .in_schedule(OnEnter(GameState::MainMenu)),
         )
-        .add_system_set(
-            ConditionSet::new()
-                .run_in_state(GameState::InGame)
-                .with_system(animation)
-                .with_system(scroll_background)
-                .with_system(move_pipes)
-                .with_system(move_floor)
-                .with_system(gravity)
-                .with_system(score_update_system)
-                .with_system(rotate)
-                .with_system(keyboard_input)
-                .with_system(check_collisions)
-                .with_system(play_flap)
-                .with_system(score_render_system)
-                .with_system(move_particles)
-                .into(),
+        .add_system(cleanup::<MenuEntity>.in_schedule(OnExit(GameState::MainMenu)))
+        .add_systems((player_setup,score_setup,rainbow_fart_setup,pipe_setup::<InGameEntity>,background_setup::<InGameEntity>).in_schedule(OnEnter(GameState::InGame)))
+        .add_system(cleanup::<InGameEntity>.in_schedule(OnExit(GameState::InGame)))
+        .add_system(gameover_setup.in_schedule(OnEnter(GameState::GameOver)))
+        .add_system(cleanup::<GameOverEntity>.in_schedule(OnExit(GameState::GameOver)))
+        .add_systems(
+            (
+                scroll_background,
+                move_pipes,
+                move_floor,
+                menu_keyboard_input,
+            )
+                .in_set(OnUpdate(GameState::MainMenu)),
         )
-        .add_system_set(
-            ConditionSet::new()
-                .run_in_state(GameState::GameOver)
-                .with_system(gameover_keyboard_input)
-                .into(),
+        .add_systems(
+            (
+                animation,
+                scroll_background,
+                move_pipes,
+                move_floor,
+                gravity,
+                score_update_system,
+                rotate,
+                keyboard_input,
+                check_collisions,
+                play_flap,
+                score_render_system,
+                move_particles,
+            )
+                .in_set(OnUpdate(GameState::InGame)),
         )
+        .add_system(gameover_keyboard_input.in_set(OnUpdate(GameState::GameOver)))
         .add_system(close_on_esc)
         .run();
 }
