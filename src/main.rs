@@ -87,7 +87,8 @@ fn global_setup(mut commands: Commands,
     mut window : Query<&mut Window>,
     asset_server: Res<AssetServer>, audio: Res<Audio>) {
     let mut window = window.single_mut();
-    window.resolution = WindowResolution::new(800.0, 600.0).with_scale_factor_override(1.0);
+    window.resolution = WindowResolution::new(800.0 * 2.0, 600.0 * 2.0).with_scale_factor_override(2.0);
+    window.resizable = false;
     window.title = "Flappy Bird".to_string();
     let camera = Camera2dBundle {
         camera: Camera {
@@ -270,6 +271,10 @@ fn rainbow_fart_onetime_setup(mut commands: Commands, mut effects: ResMut<Assets
         })
         .init(InitVelocityCircleModifier {
             speed: 0.1.into(),
+            ..default()
+        })
+        .init(InitLifetimeModifier {
+            lifetime : 1.0.into(),
             ..default()
         })
         .update(AccelModifier::constant(Vec3::new(-200., -3., 100.)))
