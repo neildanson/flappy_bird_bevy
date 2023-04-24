@@ -1,9 +1,9 @@
 use bevy::{
     log::LogPlugin,
     prelude::*,
-    render::settings::{WgpuFeatures, WgpuSettings},
+    render::{settings::{WgpuFeatures, WgpuSettings}, RenderPlugin},
     sprite::collide_aabb,
-    window::close_on_esc,
+    window::{close_on_esc, WindowResolution},
 };
 use bevy_hanabi::prelude::*;
 use rand::{thread_rng, Rng};
@@ -83,7 +83,12 @@ struct AnimationTimer(Timer);
 #[derive(Component, Deref, DerefMut)]
 struct ScoreTimer(Timer);
 
-fn global_setup(mut commands: Commands, asset_server: Res<AssetServer>, audio: Res<Audio>) {
+fn global_setup(mut commands: Commands, 
+    mut window : Query<&mut Window>,
+    asset_server: Res<AssetServer>, audio: Res<Audio>) {
+    let mut window = window.single_mut();
+    window.resolution = WindowResolution::new(800.0, 600.0).with_scale_factor_override(1.0);
+    window.title = "Flappy Bird".to_string();
     let camera = Camera2dBundle {
         camera: Camera {
             hdr: true,
@@ -497,25 +502,17 @@ where
 }
 
 fn main() {
-    let mut options = WgpuSettings::default();
-    options
+    let mut wgpu_settings = WgpuSettings::default();
+    wgpu_settings
         .features
         .set(WgpuFeatures::VERTEX_WRITABLE_STORAGE, true);
 
     App::new()
-        //.insert_resource(options)
         .insert_resource(ClearColor(Color::rgb_u8(255, 87, 51)))
         .add_plugins(
             DefaultPlugins
                 .set(ImagePlugin::default_nearest())
-                //.set(WindowPlugin {
-                //    window: WindowDescriptor {
-                //        width: 800.0,
-                //        title: "Flappy Bird".to_string(),
-                //        ..default()
-                //    },
-                //    ..default()
-                //})
+                .set(RenderPlugin { wgpu_settings , ..default()})
                 .set(LogPlugin {
                     level: bevy::log::Level::WARN,
                     filter: "bevy_hanabi=warn,spawn=trace".to_string(),
@@ -535,7 +532,16 @@ fn main() {
                 .in_schedule(OnEnter(GameState::MainMenu)),
         )
         .add_system(cleanup::<MenuEntity>.in_schedule(OnExit(GameState::MainMenu)))
-        .add_systems((player_setup,score_setup,rainbow_fart_setup,pipe_setup::<InGameEntity>,background_setup::<InGameEntity>).in_schedule(OnEnter(GameState::InGame)))
+        .add_systems(
+            (
+                player_setup,
+                score_setup,
+                rainbow_fart_setup,
+                pipe_setup::<InGameEntity>,
+                background_setup::<InGameEntity>,
+            )
+                .in_schedule(OnEnter(GameState::InGame)),
+        )
         .add_system(cleanup::<InGameEntity>.in_schedule(OnExit(GameState::InGame)))
         .add_system(gameover_setup.in_schedule(OnEnter(GameState::GameOver)))
         .add_system(cleanup::<GameOverEntity>.in_schedule(OnExit(GameState::GameOver)))
