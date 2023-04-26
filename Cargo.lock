@@ -1445,6 +1445,7 @@ dependencies = [
  "bevy",
  "bevy_hanabi",
  "rand",
+ "wasm-bindgen",
 ]
 
 [[package]]
