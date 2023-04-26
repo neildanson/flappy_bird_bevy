@@ -1,10 +1,10 @@
 use bevy::{
     log::LogPlugin,
     prelude::*,
-    render::{settings::{WgpuFeatures, WgpuSettings}, RenderPlugin},
     sprite::collide_aabb,
     window::{close_on_esc, WindowResolution},
 };
+#[cfg(not(target_arch = "wasm32"))]
 use bevy_hanabi::prelude::*;
 use rand::{thread_rng, Rng};
 
@@ -65,6 +65,7 @@ struct Velocity {
     y: f32,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Resource, Deref)]
 struct RainbowFart(Handle<EffectAsset>);
 
@@ -83,11 +84,15 @@ struct AnimationTimer(Timer);
 #[derive(Component, Deref, DerefMut)]
 struct ScoreTimer(Timer);
 
-fn global_setup(mut commands: Commands, 
-    mut window : Query<&mut Window>,
-    asset_server: Res<AssetServer>, audio: Res<Audio>) {
+fn global_setup(
+    mut commands: Commands,
+    mut window: Query<&mut Window>,
+    asset_server: Res<AssetServer>,
+    audio: Res<Audio>,
+) {
     let mut window = window.single_mut();
-    window.resolution = WindowResolution::new(800.0 * 2.0, 600.0 * 2.0).with_scale_factor_override(2.0);
+    window.resolution =
+        WindowResolution::new(1024.0, 768.0).with_scale_factor_override(1.0);
     window.resizable = false;
     window.title = "Flappy Bird".to_string();
     let camera = Camera2dBundle {
@@ -244,6 +249,12 @@ fn background_setup<TEntity: Default + Component>(
     }
 }
 
+#[cfg(target_arch = "wasm32")]
+fn rainbow_fart_onetime_setup() {
+    // nothing to do here
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 fn rainbow_fart_onetime_setup(mut commands: Commands, mut effects: ResMut<Assets<EffectAsset>>) {
     let mut color_gradient1 = Gradient::new();
     color_gradient1.add_key(0.0, Vec4::splat(1.0));
@@ -274,7 +285,7 @@ fn rainbow_fart_onetime_setup(mut commands: Commands, mut effects: ResMut<Assets
             ..default()
         })
         .init(InitLifetimeModifier {
-            lifetime : 1.0.into(),
+            lifetime: 1.0.into(),
             ..default()
         })
         .update(AccelModifier::constant(Vec3::new(-200., -3., 100.)))
@@ -289,14 +300,19 @@ fn rainbow_fart_onetime_setup(mut commands: Commands, mut effects: ResMut<Assets
     commands.insert_resource(RainbowFart(effect));
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn rainbow_fart_setup(mut commands: Commands, effect: Res<RainbowFart>) {
     commands
         .spawn(ParticleEffectBundle {
             effect: ParticleEffect::new(effect.clone()).with_z_layer_2d(Some(FLOOR_LAYER)),
             ..Default::default()
         })
+      
         .insert(InGameEntity);
 }
+
+#[cfg(target_arch = "wasm32")]
+fn rainbow_fart_setup() {}
 
 fn score_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands
@@ -461,6 +477,8 @@ fn move_floor(mut floor: Query<&mut Transform, With<Floor>>) {
     }
 }
 
+
+#[cfg(not(target_arch = "wasm32"))]
 fn move_particles(
     player: Query<&mut Transform, (With<Player>, Without<ParticleEffect>)>,
     mut particles: Query<&mut Transform, (With<ParticleEffect>, Without<Player>)>,
@@ -471,6 +489,10 @@ fn move_particles(
     particles.translation.x = player.translation.x;
     particles.translation.y = player.translation.y;
 }
+
+
+#[cfg(target_arch = "wasm32")]
+fn move_particles() {}
 
 fn check_collisions(
     audio: Res<Audio>,
@@ -507,24 +529,22 @@ where
 }
 
 fn main() {
-    let mut wgpu_settings = WgpuSettings::default();
-    wgpu_settings
-        .features
-        .set(WgpuFeatures::VERTEX_WRITABLE_STORAGE, true);
-
-    App::new()
+    let mut app = App::new();
+    let app = app
         .insert_resource(ClearColor(Color::rgb_u8(255, 87, 51)))
         .add_plugins(
             DefaultPlugins
                 .set(ImagePlugin::default_nearest())
-                .set(RenderPlugin { wgpu_settings , ..default()})
                 .set(LogPlugin {
                     level: bevy::log::Level::WARN,
                     filter: "bevy_hanabi=warn,spawn=trace".to_string(),
                 }),
-        )
-        .add_plugin(HanabiPlugin)
-        .add_startup_system(global_setup)
+        );
+
+    #[cfg(not(target_arch = "wasm32"))]
+    let app = { app.add_plugin(HanabiPlugin) };
+
+    app.add_startup_system(global_setup)
         .add_startup_system(rainbow_fart_onetime_setup)
         .add_state::<GameState>()
         .add_system(menu_setup.in_set(OnUpdate(GameState::MainMenu)))
@@ -580,3 +600,7 @@ fn main() {
         .add_system(close_on_esc)
         .run();
 }
+
+// To run wasm version see https://bevy-cheatbook.github.io/platforms/wasm.html
+// cargo install wasm-server-runner
+// cargo run --release --target wasm32-unknown-unknown
