@@ -1,2 +1,2 @@
 [target.wasm32-unknown-unknown]
-runner = "wasm-server-runner"cargo run --target wasm32-unknown-unknown
+runner = "wasm-server-runner"
